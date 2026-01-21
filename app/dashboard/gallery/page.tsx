@@ -40,13 +40,54 @@ export default function GalleryPage() {
       } = await supabase.auth.getUser();
       if (!user) return;
 
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from("ulcer_images")
         .select("*")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
-      setImages(data || []);
+      if (error) {
+        console.error("Error fetching images:", error);
+      }
+
+      // Generate signed URLs for images if needed (for private buckets)
+      if (data) {
+        const imagesWithUrls = await Promise.all(
+          data.map(async (image) => {
+            if (!image.image_url) return image;
+            
+            // Try to extract file path from URL (format: https://...supabase.co/storage/v1/object/public/ulcer-images/user_id/timestamp.jpg)
+            // Or if it's already a path: user_id/timestamp.jpg
+            let filePath = image.image_url;
+            
+            // Extract path from full public URL
+            const urlMatch = image.image_url.match(/ulcer-images\/(.+)$/);
+            if (urlMatch) {
+              filePath = urlMatch[1];
+            }
+            
+            // Try to create a signed URL (works for private buckets)
+            try {
+              const { data: signedData, error: signedError } = await supabase.storage
+                .from("ulcer-images")
+                .createSignedUrl(filePath, 3600); // 1 hour expiry
+              
+              if (!signedError && signedData?.signedUrl) {
+                console.log("Using signed URL for:", filePath);
+                return { ...image, image_url: signedData.signedUrl };
+              }
+            } catch (err) {
+              console.warn("Could not create signed URL, using original:", err);
+            }
+            
+            // Fallback to original URL (works if bucket is public)
+            return image;
+          })
+        );
+        setImages(imagesWithUrls);
+      } else {
+        setImages([]);
+      }
       setIsLoading(false);
     };
 
@@ -116,6 +157,10 @@ export default function GalleryPage() {
                   src={image.image_url || "/placeholder.svg"}
                   alt={`Ulcer photo from ${formatDate(image.created_at)}`}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Image load error:", image.image_url)
+                    e.currentTarget.src = "/placeholder.svg"
+                  }}
                 />
                 {image.notes && (
                   <div className="absolute top-2 right-2 h-6 w-6 rounded-full bg-primary flex items-center justify-center">
@@ -157,6 +202,10 @@ export default function GalleryPage() {
                 src={selectedImage.image_url || "/placeholder.svg"}
                 alt="Ulcer photo detail"
                 className="w-full rounded-lg"
+                onError={(e) => {
+                  console.error("Image load error:", selectedImage.image_url)
+                  e.currentTarget.src = "/placeholder.svg"
+                }}
               />
               {selectedImage.notes && (
                 <div className="p-3 bg-muted rounded-lg">

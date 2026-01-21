@@ -6,23 +6,21 @@ import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Ruler, Sparkles, Droplets, MapPin } from "lucide-react"
-import Image from "next/image"
-import { createClient } from "@/lib/supabase/client" // Import createClient
+import { ArrowLeft, Ruler, Sparkles, Droplets, MapPin, Home } from "lucide-react"
 
 interface AnalysisData {
   id: string
   image_url: string
   created_at: string
-  ulcer_size: number | null
-  depth: number | null
-  diameter: number | null
+  ulcer_size_cm2: number | null
+  depth_mm: number | null
+  diameter_cm: number | null
   tissue_composition: string | null
   exudate_level: string | null
   location: string | null
   diagnosis: string | null
   severity: string | null
-  recommendations: string[] | null
+  recommended_actions: string[] | null
   notes: string | null
 }
 
@@ -62,7 +60,31 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
         .single()
 
       if (imageData) {
-        setData(imageData)
+        // Generate signed URL if needed (for private buckets)
+        let imageUrl = imageData.image_url;
+        if (imageUrl) {
+          // Try to extract file path from URL
+          let filePath = imageUrl;
+          const urlMatch = imageUrl.match(/ulcer-images\/(.+)$/);
+          if (urlMatch) {
+            filePath = urlMatch[1];
+          }
+          
+          // Try to create a signed URL
+          try {
+            const { data: signedData } = await supabase.storage
+              .from("ulcer-images")
+              .createSignedUrl(filePath, 3600); // 1 hour expiry
+            
+            if (signedData?.signedUrl) {
+              imageUrl = signedData.signedUrl;
+            }
+          } catch (err) {
+            console.warn("Could not create signed URL, using original:", err);
+          }
+        }
+        
+        setData({ ...imageData, image_url: imageUrl })
       }
 
       setLoading(false)
@@ -89,15 +111,15 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
   }
 
   // Default values for display
-  const ulcerSize = data.ulcer_size || 4.2
-  const depth = data.depth || 4
-  const diameter = data.diameter || 2.3
+  const ulcerSize = data.ulcer_size_cm2 || 4.2
+  const depth = data.depth_mm || 4
+  const diameter = data.diameter_cm || 2.3
   const tissueComposition = data.tissue_composition || "Healthy granulation (90%), epithelializing"
   const exudateLevel = data.exudate_level || "Minimal, serous"
   const location = data.location || "Plantar aspect, metatarsal head 1"
   const diagnosis = data.diagnosis || "Neuropathic Ulcer - Wagner Grade 1"
   const severity = data.severity || "MODERATE"
-  const recommendations = data.recommendations || [
+  const recommendations = data.recommended_actions || [
     "Continue daily wound dressing changes",
     "Monitor for signs of infection",
     "Maintain offloading protocol",
@@ -121,12 +143,15 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           <Button variant="ghost" size="icon" onClick={() => router.back()}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-semibold text-foreground">{userName}</h1>
             <p className="text-sm text-muted-foreground">
               Image Analysis - {new Date(data.created_at).toLocaleDateString()}
             </p>
           </div>
+          <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
+            <Home className="h-5 w-5" />
+          </Button>
         </div>
       </div>
 
@@ -135,14 +160,23 @@ export default function AnalysisPage({ params }: { params: Promise<{ id: string 
           {/* Left Column - Image */}
           <div className="space-y-4">
             <div className="relative aspect-[4/3] rounded-xl overflow-hidden bg-muted">
-              <Image
-                src={data.image_url || "/placeholder.svg"}
-                alt="Wound analysis"
-                fill
-                className="object-cover"
-              />
+              {data.image_url ? (
+                <img
+                  src={data.image_url}
+                  alt="Wound analysis"
+                  className="w-full h-full object-cover"
+                  onError={(e) => {
+                    console.error("Image load error:", data.image_url)
+                    e.currentTarget.src = "/placeholder.svg"
+                  }}
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                  No image available
+                </div>
+              )}
               {/* Detection box overlay */}
-              <div className="absolute inset-0 flex items-center justify-center">
+              <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="w-3/5 h-3/5 border-4 border-amber-400 rounded-lg" />
               </div>
             </div>

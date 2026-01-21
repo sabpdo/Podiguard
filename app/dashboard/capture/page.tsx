@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card"
 import { Alert, AlertDescription } from "@/components/ui/alert"
-import { ArrowLeft, Camera, Check, X, RotateCcw, Upload, Loader2, CheckCircle, Sparkles, Move, Sun, Moon, ArrowUp, ArrowDown, ArrowRight } from "lucide-react"
+import { ArrowLeft, Camera, Check, X, RotateCcw, Upload, Loader2, CheckCircle, Sparkles, Move, Sun, Moon, ArrowUp, ArrowDown, ArrowRight, Home } from "lucide-react"
 import Link from "next/link"
 import { DISTANCE_CONFIG, LIGHTING_CONFIG } from "./capture-config"
 
@@ -557,39 +557,69 @@ export default function CapturePage() {
         setError(null)
 
         try {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (!user) throw new Error("Not authenticated")
+            // Check authentication
+            const { data: { user }, error: authError } = await supabase.auth.getUser()
+            if (authError) {
+                console.error("Auth error:", authError)
+                throw new Error(`Authentication failed: ${authError.message}`)
+            }
+            if (!user) {
+                throw new Error("Not authenticated. Please log in again.")
+            }
 
-            const response = await fetch(capturedImage)
-            const blob = await response.blob()
+            console.log("User authenticated:", user.id)
+
+            // Fetch image blob
+            let blob: Blob
+            try {
+                const response = await fetch(capturedImage)
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`)
+                }
+                blob = await response.blob()
+                console.log("Image blob created, size:", blob.size)
+            } catch (fetchError) {
+                console.error("Fetch error:", fetchError)
+                throw new Error(`Failed to process image: ${fetchError instanceof Error ? fetchError.message : 'Unknown error'}`)
+            }
 
             const fileName = `${user.id}/${Date.now()}.jpg`
+            console.log("Uploading to:", fileName)
 
+            // Upload to storage
             const { error: uploadError } = await supabase.storage
                 .from("ulcer-images")
                 .upload(fileName, blob, {
                     contentType: "image/jpeg",
+                    upsert: false, // Don't overwrite existing files
                 })
 
-            if (uploadError) throw uploadError
+            if (uploadError) {
+                console.error("Storage upload error:", uploadError)
+                throw new Error(`Storage upload failed: ${uploadError.message}. Please check if the 'ulcer-images' bucket exists and you have permission to upload.`)
+            }
+
+            console.log("Image uploaded successfully")
 
             const { data: { publicUrl } } = supabase.storage
                 .from("ulcer-images")
                 .getPublicUrl(fileName)
 
+            console.log("Public URL:", publicUrl)
+
             const analysisData = {
                 user_id: user.id,
                 image_url: publicUrl,
                 notes: notes || null,
-                ulcer_size: Number((Math.random() * 3 + 2).toFixed(1)),
-                depth: Math.floor(Math.random() * 5 + 2),
-                diameter: Number((Math.random() * 2 + 1).toFixed(1)),
+                ulcer_size_cm2: Number((Math.random() * 3 + 2).toFixed(1)),
+                depth_mm: Number((Math.floor(Math.random() * 5 + 2)).toFixed(1)),
+                diameter_cm: Number((Math.random() * 2 + 1).toFixed(1)),
                 tissue_composition: "Healthy granulation (85%), epithelializing",
                 exudate_level: "Minimal, serous",
                 location: "Plantar aspect, metatarsal head 1",
                 diagnosis: "Neuropathic Ulcer - Wagner Grade 1",
                 severity: ["MILD", "MODERATE", "MODERATE"][Math.floor(Math.random() * 3)],
-                recommendations: [
+                recommended_actions: [
                     "Continue daily wound dressing changes",
                     "Monitor for signs of infection",
                     "Maintain offloading protocol",
@@ -597,18 +627,32 @@ export default function CapturePage() {
                 ]
             }
 
+            console.log("Inserting database record...")
+
             const { data: insertedImage, error: dbError } = await supabase
                 .from("ulcer_images")
                 .insert(analysisData)
                 .select()
                 .single()
 
-            if (dbError) throw dbError
+            if (dbError) {
+                console.error("Database error:", dbError)
+                throw new Error(`Database insert failed: ${dbError.message}. Please check if the 'ulcer_images' table exists and you have permission to insert.`)
+            }
+
+            console.log("Database record created:", insertedImage.id)
 
             setUploadedImageId(insertedImage.id)
             setStep("success")
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to upload image")
+            console.error("Upload error:", err)
+            const errorMessage = err instanceof Error ? err.message : "Failed to upload image"
+            setError(errorMessage)
+            console.error("Error details:", {
+                message: errorMessage,
+                error: err,
+                capturedImage: capturedImage ? "exists" : "missing"
+            })
         } finally {
             setIsUploading(false)
         }
@@ -916,7 +960,10 @@ export default function CapturePage() {
                         <Button variant="ghost" size="icon" onClick={retakePhoto}>
                             <ArrowLeft className="h-6 w-6" />
                         </Button>
-                        <h1 className="text-xl font-semibold">Review Photo</h1>
+                        <h1 className="text-xl font-semibold flex-1">Review Photo</h1>
+                        <Button variant="ghost" size="icon" onClick={() => router.push("/dashboard")}>
+                            <Home className="h-6 w-6" />
+                        </Button>
                     </div>
 
                     <Card>
