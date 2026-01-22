@@ -150,15 +150,20 @@ export default function DashboardPage() {
   return (
     <div className="min-h-screen bg-muted/30 pb-24">
       {/* Header */}
-      <div className="bg-background border-b px-4 py-4">
+      <div className="bg-background border-b px-4 py-4 pr-24">
         <div className="flex items-center justify-between">
           <div className={language === 'ar' ? 'pr-20' : 'pr-0'}>
             <h1 className="text-xl font-semibold text-foreground">{t.dashboard.welcome} {userName}</h1>
             <p className="text-sm text-muted-foreground">{t.dashboard.trackProgress}</p>
           </div>
-          <Button variant="ghost" size="icon" onClick={handleSignOut}>
-            <LogOut className="h-5 w-5" />
-            <span className="sr-only">{t.common.signOut}</span>
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={handleSignOut}
+            className="flex items-center gap-2 shrink-0"
+          >
+            <LogOut className="h-4 w-4" />
+            <span className="text-sm hidden sm:inline">{t.common.signOut}</span>
           </Button>
         </div>
       </div>

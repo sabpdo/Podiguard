@@ -39,14 +39,19 @@ export default function LoginPage() {
 
     try {
       if (isSignUp) {
-        const redirectPath = role === "clinician" ? "/clinician/register" : "/privacy-agreement";
+        // Use production URL if available, otherwise fall back to current origin
+        const baseUrl =
+          process.env.NEXT_PUBLIC_SITE_URL ||
+          process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
+          (typeof window !== 'undefined' ? window.location.origin : '');
+        // Redirect to auth callback which will handle routing based on user role
+        const emailRedirectTo = `${baseUrl}/auth/callback`;
+
         const { error } = await supabase.auth.signUp({
           email,
           password,
           options: {
-            emailRedirectTo:
-              process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-              `${window.location.origin}${redirectPath}`,
+            emailRedirectTo,
             data: {
               role: role,
             },
@@ -60,7 +65,7 @@ export default function LoginPage() {
           password,
         });
         if (error) throw error;
-        
+
         // Route based on user role stored in metadata
         const userRole = data.user?.user_metadata?.role || "patient";
         if (userRole === "clinician") {
@@ -107,7 +112,7 @@ export default function LoginPage() {
                 <AlertDescription>{message}</AlertDescription>
               </Alert>
             )}
-            
+
             {isSignUp && (
               <div className="flex flex-col gap-2">
                 <Label>{t.login.iAmA}</Label>
@@ -115,11 +120,10 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setRole("patient")}
-                    className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
-                      role === "patient"
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/30"
-                    }`}
+                    className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${role === "patient"
+                      ? "border-primary bg-primary/5"
+                      : "border-muted hover:border-muted-foreground/30"
+                      }`}
                   >
                     <Heart className={`h-6 w-6 ${role === "patient" ? "text-primary" : "text-muted-foreground"}`} />
                     <span className={`text-sm font-medium ${role === "patient" ? "text-primary" : "text-muted-foreground"}`}>
@@ -129,11 +133,10 @@ export default function LoginPage() {
                   <button
                     type="button"
                     onClick={() => setRole("clinician")}
-                    className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${
-                      role === "clinician"
-                        ? "border-primary bg-primary/5"
-                        : "border-muted hover:border-muted-foreground/30"
-                    }`}
+                    className={`flex flex-col items-center gap-2 rounded-lg border-2 p-4 transition-all ${role === "clinician"
+                      ? "border-primary bg-primary/5"
+                      : "border-muted hover:border-muted-foreground/30"
+                      }`}
                   >
                     <Stethoscope className={`h-6 w-6 ${role === "clinician" ? "text-primary" : "text-muted-foreground"}`} />
                     <span className={`text-sm font-medium ${role === "clinician" ? "text-primary" : "text-muted-foreground"}`}>

@@ -98,76 +98,52 @@ function getBadExamples(t: any): WoundExample[] {
   ];
 }
 
-const educationTopics = [
-  {
-    id: "daily-care",
-    icon: Droplets,
-    title: "Daily Wound Care",
-    description: "Essential steps for cleaning and dressing your wound",
-    content: [
-      "Wash your hands thoroughly before and after wound care",
-      "Clean the wound gently with saline or prescribed solution",
-      "Pat dry with clean gauze - don't rub",
-      "Apply prescribed medications or ointments",
-      "Cover with appropriate dressing as directed",
-      "Change dressings as recommended by your healthcare provider",
-    ],
-  },
-  {
-    id: "foot-protection",
-    icon: Footprints,
-    title: "Protecting Your Feet",
-    description: "Prevent additional injuries and promote healing",
-    content: [
-      "Wear properly fitted, protective footwear at all times",
-      "Use off-loading devices as prescribed",
-      "Check your feet daily for new wounds or changes",
-      "Keep feet clean and moisturized (but not between toes)",
-      "Never walk barefoot, even indoors",
-      "Trim toenails carefully or have a professional do it",
-    ],
-  },
-  {
-    id: "warning-signs",
-    icon: AlertTriangle,
-    title: "Warning Signs",
-    description: "When to contact your healthcare provider",
-    content: [
-      "Increased pain, swelling, or redness around the wound",
-      "Fever or chills",
-      "Foul smell coming from the wound",
-      "Increased or colored discharge (yellow, green)",
-      "Wound size increasing instead of decreasing",
-      "New numbness or tingling in the foot",
-    ],
-  },
-  {
-    id: "nutrition",
-    icon: Heart,
-    title: "Nutrition for Healing",
-    description: "Support your body's healing process",
-    content: [
-      "Eat adequate protein for tissue repair",
-      "Include vitamin C rich foods (citrus, peppers, berries)",
-      "Get enough zinc (nuts, seeds, whole grains)",
-      "Stay well hydrated with water",
-      "Manage blood sugar levels if diabetic",
-      "Consider supplements as recommended by your doctor",
-    ],
-  },
-];
+// Function to get translated education topics
+function getEducationTopics(t: any) {
+  return [
+    {
+      id: "daily-care",
+      icon: Droplets,
+      title: t.education.dailyCareTitle,
+      description: t.education.dailyCareDescription,
+      content: t.education.dailyCareContent,
+    },
+    {
+      id: "foot-protection",
+      icon: Footprints,
+      title: t.education.footProtectionTitle,
+      description: t.education.footProtectionDescription,
+      content: t.education.footProtectionContent,
+    },
+    {
+      id: "warning-signs",
+      icon: AlertTriangle,
+      title: t.education.warningSignsTitle,
+      description: t.education.warningSignsDescription,
+      content: t.education.warningSignsContent,
+    },
+    {
+      id: "nutrition",
+      icon: Heart,
+      title: t.education.nutritionTitle,
+      description: t.education.nutritionDescription,
+      content: t.education.nutritionContent,
+    },
+  ];
+}
 
 export default function EducationPage() {
   const { t } = useLanguage();
   const [selectedExample, setSelectedExample] = useState<WoundExample | null>(
     null
   );
-  const [selectedTopic, setSelectedTopic] = useState<
-    (typeof educationTopics)[0] | null
-  >(null);
+  const [selectedTopic, setSelectedTopic] = useState<ReturnType<typeof getEducationTopics>[0] | null>(
+    null
+  );
 
   const goodExamples = getGoodExamples(t);
   const badExamples = getBadExamples(t);
+  const educationTopics = getEducationTopics(t);
 
   return (
     <div className="flex flex-col gap-6 p-4 max-w-lg mx-auto pb-8">
@@ -318,15 +294,21 @@ export default function EducationPage() {
               <div>
                 <p className="text-sm font-medium mb-2">{t.education.recommendedActions}</p>
                 <ul className="space-y-2">
-                  {selectedExample.tips.map((tip, index) => (
-                    <li
-                      key={index}
-                      className="flex items-start gap-2 text-sm text-muted-foreground"
-                    >
-                      <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
-                      {tip}
+                  {selectedExample.tips && Array.isArray(selectedExample.tips) ? (
+                    selectedExample.tips.map((tip, index) => (
+                      <li
+                        key={index}
+                        className="flex items-start gap-2 text-sm text-muted-foreground"
+                      >
+                        <CheckCircle className="h-4 w-4 text-primary flex-shrink-0 mt-0.5" />
+                        {tip}
+                      </li>
+                    ))
+                  ) : (
+                    <li className="text-sm text-muted-foreground">
+                      {t.education.noTipsAvailable || 'No tips available'}
                     </li>
-                  ))}
+                  )}
                 </ul>
               </div>
             </div>

@@ -37,7 +37,13 @@ Your project is live at:
    ```env
    NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
    NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   NEXT_PUBLIC_SITE_URL=https://your-production-domain.com
    ```
+   
+   **Important for Production:**
+   - Set `NEXT_PUBLIC_SITE_URL` to your production domain (e.g., `https://your-app.vercel.app`)
+   - Also configure the **Site URL** in your Supabase Dashboard → Authentication → URL Configuration
+   - Add your production domain to **Redirect URLs** in Supabase Authentication settings
 
 3. **Run the development server:**
    ```bash
